@@ -14,8 +14,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Portus {
     private static final Logger logger = LogManager.getLogger();
-    private static final int berthCapacity = 8;
-    private static Portus instance;
+    private static final int BERTH_CAPACITY = 8;
+    private static final Portus instance = new Portus();
     private static AtomicBoolean portCreated = new AtomicBoolean();
     private Queue<Berth> freeBerths = new LinkedList<>();
     private Queue<Berth> busyBerths = new LinkedList<>();
@@ -24,19 +24,13 @@ public class Portus {
     private final Condition berthIsFree = berthLock.newCondition();
 
     public static Portus getInstance() {
-        if (portCreated.get()) {
-            lock.lock();
-            if (!portCreated.get()) {
-                instance = new Portus();
-                portCreated.set(true);
-            }
-            lock.unlock();
-        }
         return instance;
     }
 
     private Portus() {
-        prepareBerth();
+        for (int i = 0; i < BERTH_CAPACITY; i++) {
+            freeBerths.add(new Berth(UUID.randomUUID()));
+        }
     }
 
     public Berth getFreeBerth() throws AqvatoriaThreadException {
@@ -56,20 +50,14 @@ public class Portus {
         }
     }
 
-    public void leaveBerth(Berth berth){
+    public void leaveBerth(Berth berth) {
         try {
             berthLock.lock();
             freeBerths.offer(berth);
             busyBerths.remove();
             berthIsFree.signal();
-        }finally {
+        } finally {
             berthLock.unlock();
-        }
-    }
-
-    private void prepareBerth(){
-        for (int i = 0; i< berthCapacity; i++){
-            freeBerths.add(new Berth(UUID.randomUUID()));
         }
     }
 }

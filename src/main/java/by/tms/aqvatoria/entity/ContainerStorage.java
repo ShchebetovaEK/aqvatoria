@@ -11,9 +11,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ContainerStorage {
     private static final Logger logger = LogManager.getLogger();
-    private static final int storageCapacity = 500;
-    private AtomicInteger currentCapacity = new AtomicInteger();
+    private static final int STORAGE_CAPACITY = 500;
     private static final ContainerStorage instance = new ContainerStorage();
+    private AtomicInteger currentCapacity = new AtomicInteger();
     private final Lock lock = new ReentrantLock(true);
 
     public static ContainerStorage getInstance() {
@@ -41,7 +41,7 @@ public class ContainerStorage {
     public void unloadContainers(Ship ship) throws AqvatoriaThreadException {
         try {
             lock.lock();
-            while (currentCapacity.get() < storageCapacity && ship.ableToDelete()) {
+            while (currentCapacity.get() < STORAGE_CAPACITY && ship.ableToDelete()) {
                 logger.info("Ship {}, unloads containers", ship.getId());
                 TimeUnit.MILLISECONDS.sleep(1000);
                 currentCapacity.incrementAndGet();

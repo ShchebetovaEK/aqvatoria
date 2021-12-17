@@ -1,38 +1,27 @@
 package by.tms.aqvatoria.entity;
 
-
 import by.tms.aqvatoria.exception.AqvatoriaThreadException;
+import by.tms.aqvatoria.state.ShipState;
+import by.tms.aqvatoria.state.impl.ArrivingState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.util.UUID;
 
 public class Ship implements Runnable {
 
     private static final Logger logger = LogManager.getLogger();
-    private UUID id;
-    private Berth berth;
-    private Portus portus;
+    private int id;
     private int maxCapacity;
     private int currentCapacity;
+    private ShipState shipState = new ArrivingState();
 
-    public Ship(int maxCapacity, int currentCapacity) {
-        this.id = UUID.randomUUID();
-        portus = Portus.getInstance();
+    public Ship(int id, int maxCapacity, int currentCapacity) {
+        this.id = id;
         this.maxCapacity = maxCapacity;
         this.currentCapacity = currentCapacity;
     }
 
-    public UUID getId() {
+    public int getId() {
         return id;
-    }
-
-    public Berth getBerth() {
-        return berth;
-    }
-
-    public Portus getPortus() {
-        return portus;
     }
 
     public int getMaxCapacity() {
@@ -41,6 +30,10 @@ public class Ship implements Runnable {
 
     public int getCurrentCapacity() {
         return currentCapacity;
+    }
+
+    public void setShipState(ShipState shipState) {
+        this.shipState = shipState;
     }
 
     public boolean ableToAdd() {
@@ -71,29 +64,17 @@ public class Ship implements Runnable {
         return isDeleted;
     }
 
-    private void arriveAtBerth() throws AqvatoriaThreadException {
-        berth = portus.getFreeBerth();
-        logger.info("ship {}, berth id {}", id, berth.getBerthId());
+    public void nextState() {
+        shipState.next(this);
     }
 
-    private void leaveBerth() {
-        portus.leaveBerth(berth);
-        berth = null;
-
+    public void prevState() {
+        shipState.prev(this);
     }
 
-    private void loadContainers() throws AqvatoriaThreadException {
-        if (berth != null) {
-            berth.loadContainers(this);
-        }
+    public void printState() {
+        shipState.printState(this);
     }
-
-    private void unloadContainers() throws AqvatoriaThreadException {
-        if (berth != null) {
-            berth.unloadContainers(this);
-        }
-    }
-
 
     @Override
     public boolean equals(Object o) {
@@ -102,18 +83,14 @@ public class Ship implements Runnable {
 
         Ship ship = (Ship) o;
 
+        if (id != ship.id) return false;
         if (maxCapacity != ship.maxCapacity) return false;
-        if (currentCapacity != ship.currentCapacity) return false;
-        if (!id.equals(ship.id)) return false;
-        if (!berth.equals(ship.berth)) return false;
-        return portus.equals(ship.portus);
+        return currentCapacity == ship.currentCapacity;
     }
 
     @Override
     public int hashCode() {
-        int result = id.hashCode();
-        result = 31 * result + berth.hashCode();
-        result = 31 * result + portus.hashCode();
+        int result = id;
         result = 31 * result + maxCapacity;
         result = 31 * result + currentCapacity;
         return result;
@@ -123,8 +100,6 @@ public class Ship implements Runnable {
     public String toString() {
         final StringBuilder sb = new StringBuilder("Ship{");
         sb.append("id=").append(id);
-        sb.append(", berth=").append(berth);
-        sb.append(", portus=").append(portus);
         sb.append(", maxCapacity=").append(maxCapacity);
         sb.append(", currentCapacity=").append(currentCapacity);
         sb.append('}');
@@ -134,10 +109,15 @@ public class Ship implements Runnable {
     @Override
     public void run() {
         try {
-            arriveAtBerth();
-            unloadContainers();
-            loadContainers();
-            leaveBerth();
+            Berth berth = Portus.getInstance().getFreeBerth();
+            if (berth != null) {
+                nextState();
+                berth.unloadContainers(this);
+                nextState();
+                berth.loadContainers(this);
+            }
+            Portus.getInstance().leaveBerth(berth);
+            berth = null;
         } catch (AqvatoriaThreadException e) {
             logger.error("Failed to service the ship");
         }

@@ -5,10 +5,13 @@ import by.tms.aqvatoria.reader.DataReader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,22 +24,27 @@ public class DataReaderImpl implements DataReader {
 
     @Override
     public List<String> readLines(String fileName) throws AqvatoriaThreadException {
-        if (fileName == null || fileName.isEmpty()) {
-            throw new AqvatoriaThreadException("filename null or don't exist");
-
-        }
         List<String> lines = new ArrayList<>();
-
+        URL fileUrl = DataReaderImpl.class
+                .getClassLoader()
+                .getResource(fileName);
         try {
-            ClassLoader classLoader = getClass().getClassLoader();
-            URI resource = classLoader.getResource(fileName).toURI();
-            Path path = Paths.get(resource);
-            Files.lines(path, Charset.defaultCharset()).forEach(lines::add);
-        } catch (IOException | URISyntaxException e) {
-           logger.error("Fail to read {}",fileName);
-            throw new AqvatoriaThreadException("Failed to read file : {}, {}" + fileName, e);
+            if (fileUrl == null) {
+                logger.error("fileUrl is null");
+            }
+            File file = new File(fileUrl.getFile());
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+
+            while (reader.ready()) {
+                lines.add(reader.readLine());
+            }
+            logger.info("File {},read successfully", fileName);
+        } catch (IOException e) {
+            logger.error("IOException impossible read file : {}", e.getMessage());
+        } catch (NullPointerException e) {
+            logger.error("NullPointerException impossible read file: {}", e.getMessage());
         }
-        logger.info("File {},read successfully",fileName);
+
         return lines;
     }
 }
